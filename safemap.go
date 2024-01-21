@@ -7,7 +7,12 @@ type SafeMap[K comparable, V any] struct {
 	data map[K]V
 }
 
-func NewSafeMap[K comparable, V any]() *SafeMap[K, V] {
+func NewSafeMap[K comparable, V any](data ...map[K]V) *SafeMap[K, V] {
+	if len(data) == 1 {
+		return &SafeMap[K, V]{
+			data: data[0],
+		}
+	}
 	return &SafeMap[K, V]{
 		data: make(map[K]V),
 	}
