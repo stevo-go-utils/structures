@@ -56,3 +56,25 @@ func (s *SafeMap[K, V]) ForEach(f func(K, V)) {
 		f(key, val)
 	}
 }
+
+// Breaks the for each if the funciton returns true
+func (s *SafeMap[K, V]) ForEachWithBreak(f func(K, V) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for key, val := range s.data {
+		b := f(key, val)
+		if b {
+			break
+		}
+	}
+}
+
+func (s *SafeMap[K, V]) Keys() []K {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	keys := make([]K, 0, len(s.data))
+	for key := range s.data {
+		keys = append(keys, key)
+	}
+	return keys
+}
