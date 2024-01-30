@@ -3,7 +3,7 @@ package structures
 import "errors"
 
 type Balancer struct {
-	data SafeMap[string, *BalancerStats]
+	data *SafeMap[string, *BalancerStats]
 	*BalancerOpts
 }
 
@@ -36,6 +36,7 @@ func NewBalancer(opts ...BalancerOpt) *Balancer {
 		opt(o)
 	}
 	return &Balancer{
+		data:         NewSafeMap[string, *BalancerStats](),
 		BalancerOpts: o,
 	}
 }
