@@ -15,6 +15,14 @@ type BalancerStats struct {
 	lastUsed time.Time
 }
 
+func (b BalancerStats) Errors() int {
+	return b.errors
+}
+
+func (b BalancerStats) LastUsed() time.Time {
+	return b.lastUsed
+}
+
 type BalancerResp[V comparable] struct {
 	Data   func() V
 	Use    func()
@@ -42,6 +50,12 @@ func MaxErrsBalancerOpt(maxErrs int) BalancerOpt {
 	}
 }
 
+func UseTimeoutBalancerOpt(useTimeout time.Duration) BalancerOpt {
+	return func(opts *BalancerOpts) {
+		opts.UseTimeout = &useTimeout
+	}
+}
+
 func NewBalancer[V comparable](opts ...BalancerOpt) *Balancer[V] {
 	o := DefaultBalancerOpts()
 	for _, opt := range opts {
@@ -52,63 +66,6 @@ func NewBalancer[V comparable](opts ...BalancerOpt) *Balancer[V] {
 		stats:        NewSafeMap[V, *BalancerStats](),
 		BalancerOpts: o,
 	}
-}
-
-func (b *Balancer[V]) Peek() (val V, ok bool) {
-	return b.cll.First()
-}
-
-func (b *Balancer[V]) Use() (resp BalancerResp[V], ok bool) {
-	var res V
-	res, ok = b.cll.First()
-	if !ok {
-		return
-	}
-	var stats *BalancerStats
-	stats, ok = b.stats.Get(res)
-	if !ok {
-		return
-	}
-	b.cll.Rotate()
-	resp.Use = func() {
-		stats.lastUsed = time.Now()
-	}
-	resp.Data = func() V {
-		return res
-	}
-	resp.Report = func() {
-		stats.errors++
-		if b.MaxErrs != -1 && stats.errors > b.MaxErrs {
-			b.Remove(res)
-		}
-	}
-	return
-}
-
-func (b *Balancer[V]) UseWithTimeout() (res V, timeout time.Duration, ok bool) {
-	res, ok = b.cll.First()
-	if !ok {
-		return
-	}
-	var stats *BalancerStats
-	stats, ok = b.stats.Get(res)
-	if !ok {
-		return
-	}
-	if b.UseTimeout != nil && time.Since(stats.lastUsed) < *b.UseTimeout {
-		timeout = *b.UseTimeout - time.Since(stats.lastUsed)
-	}
-	b.cll.Rotate()
-	stats.lastUsed = time.Now()
-	return
-}
-
-func (b *Balancer[V]) Vals() (vals []V) {
-	return b.cll.Vals()
-}
-
-func (b *Balancer[V]) Len() int {
-	return b.cll.Size
 }
 
 func (b *Balancer[V]) Add(vals ...V) {
@@ -126,6 +83,56 @@ func (b *Balancer[V]) Remove(vals ...V) {
 	}
 }
 
+func (b *Balancer[V]) Use() (resp BalancerResp[V], ok bool) {
+	var res V
+	res, ok = b.cll.First()
+	if !ok {
+		return
+	}
+	var stats *BalancerStats
+	stats, ok = b.stats.Get(res)
+	if !ok {
+		return
+	}
+	b.cll.Rotate()
+	resp = BalancerResp[V]{
+		Use: func() {
+			stats.lastUsed = time.Now()
+		},
+		Data: func() V {
+			return res
+		},
+		Report: func() {
+			stats.errors++
+			if b.MaxErrs != -1 && stats.errors > b.MaxErrs {
+				b.Remove(res)
+			}
+		},
+		Wait: func() {
+			if b.UseTimeout != nil && !stats.lastUsed.IsZero() {
+				time.Sleep(*b.UseTimeout - time.Since(stats.lastUsed))
+			}
+		},
+	}
+	return
+}
+
 func (b *Balancer[V]) Stats(val V) (stats *BalancerStats, ok bool) {
 	return b.stats.Get(val)
+}
+
+func (b *Balancer[V]) Vals() (vals []V) {
+	return b.cll.Vals()
+}
+
+func (b *Balancer[V]) Len() int {
+	return b.cll.Size
+}
+
+func (b *Balancer[V]) Peek() (val V, ok bool) {
+	return b.cll.First()
+}
+
+func (b *Balancer[V]) Last() (val V, ok bool) {
+	return b.cll.Last()
 }
