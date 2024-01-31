@@ -1,26 +1,34 @@
 package structures
 
-import "errors"
+import (
+	"time"
+)
 
-type Balancer struct {
-	data *SafeMap[string, *BalancerStats]
+type Balancer[V any] struct {
+	front *BalancerQueueNode[V]
+	back  *BalancerQueueNode[V]
+	size  int
 	*BalancerOpts
 }
 
 type BalancerOpts struct {
-	MaxErrs int
+	MaxErrs    int
+	UseTimeout *time.Duration
 }
 
 type BalancerOpt func(*BalancerOpts)
 
-type BalancerStats struct {
-	uses   int
-	errors int
+type BalancerQueueNode[V any] struct {
+	data    V
+	next    *BalancerQueueNode[V]
+	errors  int
+	lastUse *time.Time
 }
 
 func DefaultBalancerOpts() *BalancerOpts {
 	return &BalancerOpts{
-		MaxErrs: -1,
+		MaxErrs:    -1,
+		UseTimeout: nil,
 	}
 }
 
@@ -30,30 +38,56 @@ func MaxErrsBalancerOpt(maxErrs int) BalancerOpt {
 	}
 }
 
-func NewBalancer(opts ...BalancerOpt) *Balancer {
+func NewBalancer[V any](opts ...BalancerOpt) *Balancer[V] {
 	o := DefaultBalancerOpts()
 	for _, opt := range opts {
 		opt(o)
 	}
-	return &Balancer{
-		data:         NewSafeMap[string, *BalancerStats](),
+	return &Balancer[V]{
+		front:        nil,
 		BalancerOpts: o,
 	}
 }
 
-func (b *Balancer) Add(vals ...string) {
-	for _, val := range vals {
-		// Check if val exists in data map
-		_, has := b.data.Get(val)
-		// Add to data map if it doesn't exist
-		if !has {
-			b.data.Set(val, &BalancerStats{
-				uses:   0,
-				errors: 0,
-			})
+func (b *Balancer[V]) insertNode(data V) {
+	if b.front == nil {
+		b.front = &BalancerQueueNode[V]{
+			data:    data,
+			next:    nil,
+			errors:  0,
+			lastUse: nil,
+		}
+	} else {
+		tmp := b.front
+		b.front = &BalancerQueueNode[V]{
+			data:    data,
+			next:    tmp,
+			errors:  0,
+			lastUse: nil,
 		}
 	}
+	b.size++
 }
+
+func (b *Balancer[V]) Add(vals ...V) {
+	for _, val := range vals {
+		b.insertNode(val)
+	}
+}
+
+func (b *Balancer[V]) Peek() V {
+	return b.front.data
+}
+
+func (b *Balancer[V]) Use() (res V) {
+	res = b.front.data
+	tmp := b.front
+	b.front = b.front.next
+
+	return
+}
+
+/*
 
 func (b *Balancer) Vals() (vals []string) {
 	b.data.ForEach(func(val string, stats *BalancerStats) {
@@ -142,3 +176,4 @@ func (b *Balancer) Has(val string) (has bool) {
 	_, has = b.data.Get(val)
 	return
 }
+*/
