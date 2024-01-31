@@ -4,11 +4,15 @@ import (
 	"time"
 )
 
-type Balancer[V any] struct {
-	front *BalancerQueueNode[V]
-	back  *BalancerQueueNode[V]
-	size  int
+type Balancer[V comparable] struct {
+	cll   CircularLinkedList[V]
+	stats *SafeMap[V, *BalancerStats]
 	*BalancerOpts
+}
+
+type BalancerStats struct {
+	errors   int
+	lastUsed time.Time
 }
 
 type BalancerOpts struct {
@@ -17,13 +21,6 @@ type BalancerOpts struct {
 }
 
 type BalancerOpt func(*BalancerOpts)
-
-type BalancerQueueNode[V any] struct {
-	data    V
-	next    *BalancerQueueNode[V]
-	errors  int
-	lastUse *time.Time
-}
 
 func DefaultBalancerOpts() *BalancerOpts {
 	return &BalancerOpts{
@@ -38,142 +35,74 @@ func MaxErrsBalancerOpt(maxErrs int) BalancerOpt {
 	}
 }
 
-func NewBalancer[V any](opts ...BalancerOpt) *Balancer[V] {
+func NewBalancer[V comparable](opts ...BalancerOpt) *Balancer[V] {
 	o := DefaultBalancerOpts()
 	for _, opt := range opts {
 		opt(o)
 	}
 	return &Balancer[V]{
-		front:        nil,
+		cll:          NewCircularLinkedList[V](),
+		stats:        NewSafeMap[V, *BalancerStats](),
 		BalancerOpts: o,
 	}
 }
 
-func (b *Balancer[V]) insertNode(data V) {
-	if b.front == nil {
-		b.front = &BalancerQueueNode[V]{
-			data:    data,
-			next:    nil,
-			errors:  0,
-			lastUse: nil,
-		}
-	} else {
-		tmp := b.front
-		b.front = &BalancerQueueNode[V]{
-			data:    data,
-			next:    tmp,
-			errors:  0,
-			lastUse: nil,
-		}
+func (b *Balancer[V]) Peek() (val V, ok bool) {
+	return b.cll.First()
+}
+
+func (b *Balancer[V]) Use() (res V, ok bool) {
+	res, ok = b.cll.First()
+	if !ok {
+		return
 	}
-	b.size++
+	var stats *BalancerStats
+	stats, ok = b.stats.Get(res)
+	if !ok {
+		return
+	}
+	if b.UseTimeout != nil && time.Since(stats.lastUsed) < *b.UseTimeout {
+		time.Sleep(time.Since(stats.lastUsed))
+	}
+	b.cll.Rotate()
+	stats.lastUsed = time.Now()
+	return
+}
+
+func (b *Balancer[V]) Vals() (vals []V) {
+	return b.cll.Vals()
+}
+
+func (b *Balancer[V]) Len() int {
+	return b.cll.Size
 }
 
 func (b *Balancer[V]) Add(vals ...V) {
-	for _, val := range vals {
-		b.insertNode(val)
+	for i := len(vals) - 1; i >= 0; i-- {
+		val := vals[i]
+		b.cll.AddFirst(val)
+		b.stats.Set(val, &BalancerStats{})
 	}
 }
 
-func (b *Balancer[V]) Peek() V {
-	return b.front.data
+func (b *Balancer[V]) Remove(vals ...V) {
+	for _, val := range vals {
+		b.cll.Remove(val)
+		b.stats.Delete(val)
+	}
 }
 
-func (b *Balancer[V]) Use() (res V) {
-	res = b.front.data
-	tmp := b.front
-	b.front = b.front.next
-
-	return
+func (b *Balancer[V]) Stats(val V) (stats *BalancerStats, ok bool) {
+	return b.stats.Get(val)
 }
 
-/*
-
-func (b *Balancer) Vals() (vals []string) {
-	b.data.ForEach(func(val string, stats *BalancerStats) {
-		vals = append(vals, val)
-	})
-	return
-}
-
-func (b *Balancer) Use() (val string, err error) {
-	// Check if balancer is empty
-	if b.data.Len() == 0 {
-		err = errors.New("no vals available")
+func (b *Balancer[V]) Report(val V) {
+	stats, ok := b.stats.Get(val)
+	if !ok {
 		return
 	}
-
-	// Default min used to the first proxy
-	var firstVal string
-	var firstValStats *BalancerStats
-	b.data.ForEachWithBreak(func(proxy string, stats *BalancerStats) bool {
-		firstVal = proxy
-		firstValStats = stats
-		return true
-	})
-	leastUsed := []string{firstVal}
-	minUses := firstValStats.uses
-
-	// Get least used proxies
-	b.data.ForEach(func(proxy string, stats *BalancerStats) {
-		if stats.uses < minUses {
-			leastUsed = []string{proxy}
-			minUses = stats.uses
-		} else if stats.uses == minUses {
-			leastUsed = append(leastUsed, proxy)
-		}
-	})
-
-	// Select proxy and increment uses
-	val = leastUsed[0]
-	valStats, has := b.data.Get(val)
-	if !has {
-		err = errors.New("failed to get val")
-		return
-	}
-	valStats.uses++
-
-	return
-}
-
-func (b *Balancer) DelVals(vals ...string) {
-	for _, val := range vals {
-		b.data.Delete(val)
+	stats.errors++
+	if b.MaxErrs != -1 && stats.errors > b.MaxErrs {
+		b.Remove(val)
 	}
 }
-
-func (b *Balancer) ClearVals() {
-	for _, key := range b.data.Keys() {
-		b.data.Delete(key)
-	}
-}
-
-func (b *Balancer) ResetProxiesStats(proxies ...string) {
-	for _, proxy := range proxies {
-		stats, has := b.data.Get(proxy)
-		if !has {
-			continue
-		}
-		stats.uses = 0
-		stats.errors = 0
-	}
-}
-
-func (b *Balancer) ReportVal(vals ...string) {
-	for _, val := range vals {
-		stats, has := b.data.Get(val)
-		if !has {
-			continue
-		}
-		stats.errors++
-		if stats.errors > -1 && stats.errors >= b.MaxErrs {
-			b.DelVals(val)
-		}
-	}
-}
-
-func (b *Balancer) Has(val string) (has bool) {
-	_, has = b.data.Get(val)
-	return
-}
-*/
