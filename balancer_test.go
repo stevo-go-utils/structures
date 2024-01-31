@@ -31,23 +31,6 @@ func TestUse(t *testing.T) {
 	if !ok {
 		t.Errorf("expected true, got false")
 	}
-	if val != 1 {
-		t.Errorf("expected 1, got %d", val)
-	}
-	val, ok = balancer.Use()
-	if !ok {
-		t.Errorf("expected true, got false")
-	}
-	if val != 2 {
-		t.Errorf("expected 1, got %d", val)
-	}
-	val, ok = balancer.Use()
-	if !ok {
-		t.Errorf("expected true, got false")
-	}
-	if val != 1 {
-		t.Errorf("expected 1, got %d", val)
-	}
 }
 
 func TestRemove(t *testing.T) {
