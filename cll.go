@@ -153,6 +153,7 @@ func (c *CircularLinkedList[T]) Vals() (vals []T) {
 	for current := c.tail.Next; current != c.tail; current = current.Next {
 		vals = append(vals, current.Data)
 	}
+	vals = append(vals, c.tail.Data)
 	return
 }
 

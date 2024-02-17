@@ -10,7 +10,8 @@ import (
 
 func TestAdd(t *testing.T) {
 	balancer := structures.NewBalancer[int]()
-	balancer.Add(1, 2)
+	balancer.Add(1, 2, 3)
+	fmt.Println(balancer.Vals())
 }
 
 func TestPeek(t *testing.T) {
