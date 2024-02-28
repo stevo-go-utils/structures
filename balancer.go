@@ -76,6 +76,13 @@ func (b *Balancer[V]) Add(vals ...V) {
 	}
 }
 
+func (b *Balancer[V]) AddLast(vals ...V) {
+	for _, val := range vals {
+		b.cll.AddLast(val)
+		b.stats.Set(val, &BalancerStats{})
+	}
+}
+
 func (b *Balancer[V]) Remove(vals ...V) {
 	for _, val := range vals {
 		b.cll.Remove(val)
