@@ -15,6 +15,10 @@ func NewMapComparator[K comparable, V any](data ...map[K]V) *MapComparator[K, V]
 	}
 }
 
+func (m *MapComparator[K, V]) Data() map[K]V {
+	return m.cur
+}
+
 func (m *MapComparator[K, V]) CompareTo(data map[K]V) (addedKeys []K, removedKeys []K) {
 	for k := range m.cur {
 		if _, ok := data[k]; !ok {
@@ -96,6 +100,10 @@ func NewSafeMapComparator[K comparable, V any](data ...*SafeMap[K, V]) *SafeMapC
 	return &SafeMapComparator[K, V]{
 		cur: NewSafeMap[K, V](),
 	}
+}
+
+func (m *SafeMapComparator[K, V]) Data() *SafeMap[K, V] {
+	return m.cur
 }
 
 func (m *SafeMapComparator[K, V]) CompareTo(data map[K]V) (addedKeys []K, removedKeys []K) {
