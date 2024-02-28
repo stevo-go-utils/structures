@@ -78,3 +78,10 @@ func (s *SafeMap[K, V]) Keys() []K {
 	}
 	return keys
 }
+
+func (s *SafeMap[K, V]) Has(k K) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.data[k]
+	return ok
+}
