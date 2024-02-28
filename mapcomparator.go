@@ -99,10 +99,31 @@ func NewSafeMapComparator[K comparable, V any](data ...*SafeMap[K, V]) *SafeMapC
 }
 
 func (m *SafeMapComparator[K, V]) CompareTo(data map[K]V) (addedKeys []K, removedKeys []K) {
+	m.cur.ForEach(func(k K, v V) {
+		if _, ok := data[k]; !ok {
+			removedKeys = append(removedKeys, k)
+		}
+	})
+
+	m.cur.ForEach(func(k K, v V) {
+		if _, ok := data[k]; !ok {
+			addedKeys = append(addedKeys, k)
+		}
+	})
 	return
 }
 
 func (m *SafeMapComparator[K, V]) CompareToSafe(data *SafeMap[K, V]) (addedKeys []K, removedKeys []K) {
+	m.cur.ForEach(func(k K, v V) {
+		if _, ok := data.Get(k); !ok {
+			removedKeys = append(removedKeys, k)
+		}
+	})
+	m.cur.ForEach(func(k K, v V) {
+		if _, ok := data.Get(k); !ok {
+			addedKeys = append(addedKeys, k)
+		}
+	})
 	return
 }
 
