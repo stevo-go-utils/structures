@@ -104,12 +104,11 @@ func (m *SafeMapComparator[K, V]) CompareTo(data map[K]V) (addedKeys []K, remove
 			removedKeys = append(removedKeys, k)
 		}
 	})
-
-	m.cur.ForEach(func(k K, v V) {
-		if _, ok := data[k]; !ok {
+	for k := range data {
+		if _, ok := m.cur.Get(k); !ok {
 			addedKeys = append(addedKeys, k)
 		}
-	})
+	}
 	return
 }
 
@@ -119,8 +118,8 @@ func (m *SafeMapComparator[K, V]) CompareToSafe(data *SafeMap[K, V]) (addedKeys 
 			removedKeys = append(removedKeys, k)
 		}
 	})
-	m.cur.ForEach(func(k K, v V) {
-		if _, ok := data.Get(k); !ok {
+	data.ForEach(func(k K, v V) {
+		if _, ok := m.cur.Get(k); !ok {
 			addedKeys = append(addedKeys, k)
 		}
 	})
@@ -146,17 +145,17 @@ func (m *SafeMapComparator[K, V]) RemovedKeysSafe(data *SafeMap[K, V]) (removedK
 }
 
 func (m *SafeMapComparator[K, V]) AddedKeys(data map[K]V) (addedKeys []K) {
-	m.cur.ForEach(func(k K, v V) {
-		if _, ok := data[k]; !ok {
+	for k := range data {
+		if _, ok := m.cur.Get(k); !ok {
 			addedKeys = append(addedKeys, k)
 		}
-	})
+	}
 	return
 }
 
 func (m *SafeMapComparator[K, V]) AddedKeysSafe(data *SafeMap[K, V]) (addedKeys []K) {
-	m.cur.ForEach(func(k K, v V) {
-		if _, ok := data.Get(k); !ok {
+	data.ForEach(func(k K, v V) {
+		if _, ok := m.cur.Get(k); !ok {
 			addedKeys = append(addedKeys, k)
 		}
 	})
