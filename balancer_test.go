@@ -2,6 +2,7 @@ package structures_test
 
 import (
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -77,4 +78,16 @@ func TestReport(t *testing.T) {
 	if stats.Errors() != 1 {
 		t.Errorf("expected 1, got %d", stats.Errors())
 	}
+}
+
+func TestBalancerReadyEvents(t *testing.T) {
+	balancer := structures.NewBalancer[int](structures.UseTimeoutBalancerOpt(1 * time.Second))
+	go func() {
+		for e := range balancer.ReadyEventCh() {
+			slog.Info(fmt.Sprint(e.Data()))
+			e.Use()
+		}
+	}()
+	balancer.Add(1, 2, 3)
+	<-make(chan struct{})
 }

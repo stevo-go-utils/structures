@@ -5,8 +5,9 @@ import (
 )
 
 type Balancer[V comparable] struct {
-	cll   CircularLinkedList[V]
-	stats *SafeMap[V, *BalancerStats]
+	cll          CircularLinkedList[V]
+	stats        *SafeMap[V, *BalancerStats]
+	readyEventCh chan BalancerResp[V]
 	*BalancerOpts
 }
 
@@ -65,21 +66,38 @@ func NewBalancer[V comparable](opts ...BalancerOpt) *Balancer[V] {
 		cll:          NewCircularLinkedList[V](),
 		stats:        NewSafeMap[V, *BalancerStats](),
 		BalancerOpts: o,
+		readyEventCh: make(chan BalancerResp[V]),
 	}
+}
+
+func (b Balancer[V]) ReadyEventCh() <-chan BalancerResp[V] {
+	return b.readyEventCh
 }
 
 func (b *Balancer[V]) Add(vals ...V) {
 	for i := len(vals) - 1; i >= 0; i-- {
 		val := vals[i]
 		b.cll.AddFirst(val)
-		b.stats.Set(val, &BalancerStats{})
+		stats := &BalancerStats{}
+		b.stats.Set(val, stats)
+		if b.cll.Size == 1 {
+			go func(b *Balancer[V], val V, stats *BalancerStats) {
+				b.readyEventCh <- b.newBalancerResp(val, stats)
+			}(b, val, stats)
+		}
 	}
 }
 
 func (b *Balancer[V]) AddLast(vals ...V) {
 	for _, val := range vals {
 		b.cll.AddLast(val)
-		b.stats.Set(val, &BalancerStats{})
+		stats := &BalancerStats{}
+		b.stats.Set(val, stats)
+		if b.cll.Size == 1 {
+			go func(b *Balancer[V], val V, stats *BalancerStats) {
+				b.readyEventCh <- b.newBalancerResp(val, stats)
+			}(b, val, stats)
+		}
 	}
 }
 
@@ -91,37 +109,42 @@ func (b *Balancer[V]) Remove(vals ...V) {
 }
 
 func (b *Balancer[V]) Use() (resp BalancerResp[V], ok bool) {
-	var res V
-	res, ok = b.cll.First()
+	// Event notification for when next value is ready
+
+	// Grab the first value
+	var data V
+	data, ok = b.cll.First()
 	if !ok {
 		return
 	}
+
+	// Get the stats for the value
 	var stats *BalancerStats
-	stats, ok = b.stats.Get(res)
+	stats, ok = b.stats.Get(data)
 	if !ok {
 		return
 	}
+
+	// Rotate the list
 	b.cll.Rotate()
-	resp = BalancerResp[V]{
-		Use: func() {
-			stats.lastUsed = time.Now()
-		},
-		Data: func() V {
-			return res
-		},
-		Report: func() {
-			stats.errors++
-			if b.MaxErrs != -1 && stats.errors > b.MaxErrs {
-				b.Remove(res)
-			}
-		},
-		Wait: func() {
-			if b.UseTimeout != nil && !stats.lastUsed.IsZero() {
-				time.Sleep(*b.UseTimeout - time.Since(stats.lastUsed))
-			}
-		},
-	}
-	return
+
+	// Get the next value
+	go func(b *Balancer[V]) {
+		next, ok := b.cll.First()
+		if !ok {
+			return
+		}
+		nextStats, ok := b.stats.Get(next)
+		if !ok {
+			return
+		}
+		if b.UseTimeout != nil && !stats.lastUsed.IsZero() {
+			time.Sleep(*b.UseTimeout - time.Since(stats.lastUsed))
+		}
+		b.readyEventCh <- b.newBalancerResp(next, nextStats)
+	}(b)
+
+	return b.newBalancerResp(data, stats), ok
 }
 
 func (b *Balancer[V]) Stats(val V) (stats *BalancerStats, ok bool) {
@@ -142,4 +165,26 @@ func (b *Balancer[V]) Peek() (val V, ok bool) {
 
 func (b *Balancer[V]) Last() (val V, ok bool) {
 	return b.cll.Last()
+}
+
+func (b *Balancer[V]) newBalancerResp(data V, stats *BalancerStats) BalancerResp[V] {
+	return BalancerResp[V]{
+		Use: func() {
+			stats.lastUsed = time.Now()
+		},
+		Data: func() V {
+			return data
+		},
+		Report: func() {
+			stats.errors++
+			if b.MaxErrs != -1 && stats.errors > b.MaxErrs {
+				b.Remove(data)
+			}
+		},
+		Wait: func() {
+			if b.UseTimeout != nil && !stats.lastUsed.IsZero() {
+				time.Sleep(*b.UseTimeout - time.Since(stats.lastUsed))
+			}
+		},
+	}
 }
