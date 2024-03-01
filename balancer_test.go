@@ -81,14 +81,13 @@ func TestReport(t *testing.T) {
 }
 
 func TestBalancerReadyEvents(t *testing.T) {
-	b := structures.NewBalancer[int](structures.UseTimeoutBalancerOpt(1 * time.Second))
+	balancer := structures.NewBalancer[int](structures.UseTimeoutBalancerOpt(1 * time.Second))
 	go func() {
-		for e := range b.ReadyEventCh() {
-			e.Use()
+		for e := range balancer.ReadyEventCh() {
 			slog.Info(fmt.Sprint(e.Data()))
-			b.Use()
+			e.Use()
 		}
 	}()
-	b.Add(1, 2, 3)
+	balancer.Add(1, 2, 3)
 	<-make(chan struct{})
 }

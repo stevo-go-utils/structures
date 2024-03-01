@@ -31,14 +31,10 @@ func (s *SafeMap[K, V]) Get(k K) (V, bool) {
 	return val, ok
 }
 
-func (s *SafeMap[K, V]) MustGet(k K) (res V) {
+func (s *SafeMap[K, V]) MustGet(k K) V {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	data, ok := s.data[k]
-	if !ok {
-		return
-	}
-	return data
+	return s.data[k]
 }
 
 func (s *SafeMap[K, V]) Delete(k K) {
