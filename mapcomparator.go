@@ -1,5 +1,19 @@
 package structures
 
+func CompareMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) (added []K, removed []K) {
+	for k := range m1 {
+		if _, ok := m2[k]; !ok {
+			removed = append(removed, k)
+		}
+	}
+	for k := range m2 {
+		if _, ok := m1[k]; !ok {
+			added = append(added, k)
+		}
+	}
+	return
+}
+
 type MapComparator[K comparable, V any] struct {
 	cur map[K]V
 }

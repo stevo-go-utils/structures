@@ -2,7 +2,7 @@ package structures
 
 import "slices"
 
-func CompareSlices[T any](s1 []any, s2 []any) (added []any, removed []any) {
+func CompareSlices[T comparable](s1 []T, s2 []T) (added []T, removed []T) {
 	for _, v1 := range s1 {
 		if !slices.Contains(s2, v1) {
 			removed = append(removed, v1)

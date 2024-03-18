@@ -80,11 +80,6 @@ func (b *Balancer[V]) Add(vals ...V) {
 		b.cll.AddFirst(val)
 		stats := &BalancerStats{}
 		b.stats.Set(val, stats)
-		if b.cll.Size == 1 {
-			go func(b *Balancer[V], val V, stats *BalancerStats) {
-				b.readyEventCh <- b.newBalancerResp(val, stats)
-			}(b, val, stats)
-		}
 	}
 }
 
@@ -93,11 +88,6 @@ func (b *Balancer[V]) AddLast(vals ...V) {
 		b.cll.AddLast(val)
 		stats := &BalancerStats{}
 		b.stats.Set(val, stats)
-		if b.cll.Size == 1 {
-			go func(b *Balancer[V], val V, stats *BalancerStats) {
-				b.readyEventCh <- b.newBalancerResp(val, stats)
-			}(b, val, stats)
-		}
 	}
 }
 
@@ -127,22 +117,6 @@ func (b *Balancer[V]) Use() (resp BalancerResp[V], ok bool) {
 
 	// Rotate the list
 	b.cll.Rotate()
-
-	// Get the next value
-	go func(b *Balancer[V]) {
-		next, ok := b.cll.First()
-		if !ok {
-			return
-		}
-		nextStats, ok := b.stats.Get(next)
-		if !ok {
-			return
-		}
-		if b.UseTimeout != nil && !stats.lastUsed.IsZero() {
-			time.Sleep(*b.UseTimeout - time.Since(stats.lastUsed))
-		}
-		b.readyEventCh <- b.newBalancerResp(next, nextStats)
-	}(b)
 
 	return b.newBalancerResp(data, stats), ok
 }
