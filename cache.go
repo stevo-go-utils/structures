@@ -38,8 +38,8 @@ func AutoDeleteCacheOpt() CacheOpt {
 func NewCache[K comparable](expiry time.Duration, opts ...CacheOpt) *Cache[K] {
 	return &Cache[K]{
 		expiry:            expiry,
-		items:             make(map[K]time.Time),
-		autoDeleteCancels: make(map[K]func()),
+		items:             map[K]time.Time{},
+		autoDeleteCancels: map[K]func(){},
 		mu:                sync.RWMutex{},
 		opts:              NewCacheOptions(opts...),
 	}
