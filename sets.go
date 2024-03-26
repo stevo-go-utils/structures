@@ -2,35 +2,42 @@ package structures
 
 import "sync"
 
-// StringSet the set of Strings
-type StringSet struct {
-	items map[string]bool
+type Set[T comparable] struct {
+	items map[T]bool
 	lock  sync.RWMutex
 }
 
-// Add adds a new element to the Set. Returns a pointer to the Set.
-func (s *StringSet) Add(t string) *StringSet {
+func NewSet[T comparable]() *Set[T] {
+	return &Set[T]{
+		items: make(map[T]bool),
+	}
+}
+
+// Add adds a new item(s) to the Set. Returns a pointer to the Set.
+func (s *Set[T]) Add(items ...T) *Set[T] {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if s.items == nil {
-		s.items = make(map[string]bool)
+		s.items = make(map[T]bool)
 	}
-	_, ok := s.items[t]
-	if !ok {
-		s.items[t] = true
+	for _, item := range items {
+		_, ok := s.items[item]
+		if !ok {
+			s.items[item] = true
+		}
 	}
 	return s
 }
 
-// Clear removes all elements from the Set
-func (s *StringSet) Clear() {
+// Clear removes all items from the Set
+func (s *Set[T]) Clear() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.items = make(map[string]bool)
+	s.items = make(map[T]bool)
 }
 
-// Delete removes the string from the Set and returns Has(string)
-func (s *StringSet) Delete(item string) bool {
+// Delete removes the item from the Set and returns Has(item)
+func (s *Set[T]) Delete(item T) bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	_, ok := s.items[item]
@@ -40,19 +47,19 @@ func (s *StringSet) Delete(item string) bool {
 	return ok
 }
 
-// Has returns true if the Set contains the string
-func (s *StringSet) Has(item string) bool {
+// Has returns true if the Set contains the item
+func (s *Set[T]) Has(item T) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	_, ok := s.items[item]
 	return ok
 }
 
-// Strings returns the string(s) stored
-func (s *StringSet) Strings() []string {
+// Vals returns the val(s) stored
+func (s *Set[T]) Vals() []T {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-	items := []string{}
+	items := []T{}
 	for i := range s.items {
 		items = append(items, i)
 	}
@@ -60,73 +67,7 @@ func (s *StringSet) Strings() []string {
 }
 
 // Size returns the size of the set
-func (s *StringSet) Size() int {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	return len(s.items)
-}
-
-// Package set creates an IntSet data structure for the int type
-
-// IntSet the set of Ints
-type IntSet struct {
-	items map[int]bool
-	lock  sync.RWMutex
-}
-
-// Add adds a new element to the Set. Returns a pointer to the Set.
-func (s *IntSet) Add(t int) *IntSet {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	if s.items == nil {
-		s.items = make(map[int]bool)
-	}
-	_, ok := s.items[t]
-	if !ok {
-		s.items[t] = true
-	}
-	return s
-}
-
-// Clear removes all elements from the Set
-func (s *IntSet) Clear() {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	s.items = make(map[int]bool)
-}
-
-// Delete removes the int from the Set and returns Has(int)
-func (s *IntSet) Delete(item int) bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	_, ok := s.items[item]
-	if ok {
-		delete(s.items, item)
-	}
-	return ok
-}
-
-// Has returns true if the Set contains the int
-func (s *IntSet) Has(item int) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	_, ok := s.items[item]
-	return ok
-}
-
-// Ints returns the int(s) stored
-func (s *IntSet) Ints() []int {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	items := []int{}
-	for i := range s.items {
-		items = append(items, i)
-	}
-	return items
-}
-
-// Size returns the size of the set
-func (s *IntSet) Size() int {
+func (s *Set[T]) Size() int {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return len(s.items)
