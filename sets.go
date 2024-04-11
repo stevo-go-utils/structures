@@ -7,9 +7,13 @@ type Set[T comparable] struct {
 	lock  sync.RWMutex
 }
 
-func NewSet[T comparable]() *Set[T] {
+func NewSet[T comparable](items ...T) *Set[T] {
+	m := map[T]bool{}
+	for _, item := range items {
+		m[item] = true
+	}
 	return &Set[T]{
-		items: make(map[T]bool),
+		items: m,
 	}
 }
 
