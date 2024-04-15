@@ -5,9 +5,10 @@ import (
 )
 
 type Balancer[V comparable] struct {
-	cll          CircularLinkedList[V]
-	stats        *SafeMap[V, *BalancerStats]
-	readyEventCh chan BalancerResp[V]
+	cll            CircularLinkedList[V]
+	stats          *SafeMap[V, *BalancerStats]
+	readyEventCh   chan BalancerResp[V]
+	onReportRemove func(V)
 	*BalancerOpts
 }
 
@@ -68,6 +69,14 @@ func NewBalancer[V comparable](opts ...BalancerOpt) *Balancer[V] {
 		BalancerOpts: o,
 		readyEventCh: make(chan BalancerResp[V]),
 	}
+}
+
+func (b *Balancer[V]) SetOnReportRemove(fn func(V)) {
+	b.onReportRemove = fn
+}
+
+func (b *Balancer[V]) OnReportRemove() func(V) {
+	return b.onReportRemove
 }
 
 func (b Balancer[V]) ReadyEventCh() <-chan BalancerResp[V] {
@@ -153,6 +162,9 @@ func (b *Balancer[V]) newBalancerResp(data V, stats *BalancerStats) BalancerResp
 			stats.errors++
 			if b.MaxErrs != -1 && stats.errors > b.MaxErrs {
 				b.Remove(data)
+				if b.OnReportRemove() != nil {
+					b.OnReportRemove()(data)
+				}
 			}
 		},
 		Wait: func() {
