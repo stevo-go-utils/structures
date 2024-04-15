@@ -71,8 +71,9 @@ func NewBalancer[V comparable](opts ...BalancerOpt) *Balancer[V] {
 	}
 }
 
-func (b *Balancer[V]) SetOnReportRemove(fn func(V)) {
+func (b *Balancer[V]) SetOnReportRemove(fn func(V)) *Balancer[V] {
 	b.onReportRemove = fn
+	return b
 }
 
 func (b *Balancer[V]) OnReportRemove() func(V) {
