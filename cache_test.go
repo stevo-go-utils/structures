@@ -60,3 +60,21 @@ func TestCacheAutoDeleteWithRenewedItems(t *testing.T) {
 	time.Sleep(time.Millisecond * 500)
 	is.Equal(cache.Len(), 0)
 }
+
+func TestCacheMapAutoDeleteWithRenewedItems(t *testing.T) {
+	is := is.New(t)
+	cache := structures.NewCacheMap[int, int](time.Second, structures.AutoDeleteCacheOpt())
+	for i := 0; i < 5; i++ {
+		cache.Add(i, i)
+	}
+	time.Sleep(time.Millisecond * 500)
+	cache.Add(4, 4)
+	cache.AddWithExpiry(5, 5, time.Minute)
+	time.Sleep(time.Millisecond * 600)
+	is.Equal(cache.Len(), 2)
+	v, ok := cache.Get(4)
+	is.Equal(ok, true)
+	is.Equal(v, 4)
+	time.Sleep(time.Millisecond * 500)
+	is.Equal(cache.Len(), 1)
+}
