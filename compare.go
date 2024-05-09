@@ -2,6 +2,7 @@ package structures
 
 import "slices"
 
+// finds what keys were removed and added from m1 compared to m2
 func CompareMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) (added []K, removed []K) {
 	for k := range m1 {
 		if _, ok := m2[k]; !ok {
@@ -16,6 +17,7 @@ func CompareMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) (added []K, remove
 	return
 }
 
+// finds what keys were removed and added from s1 compared to s2
 func CompareSlices[T comparable](s1 []T, s2 []T) (added []T, removed []T) {
 	for _, v1 := range s1 {
 		if !slices.Contains(s2, v1) {
@@ -30,6 +32,7 @@ func CompareSlices[T comparable](s1 []T, s2 []T) (added []T, removed []T) {
 	return
 }
 
+// finds what keys were removed and added from s1 compared to m2
 func CompareSliceToMap[K comparable, V any](s1 []K, m2 map[K]V) (added []K, removed []K) {
 	for _, v := range s1 {
 		if _, ok := m2[v]; !ok {
@@ -44,6 +47,7 @@ func CompareSliceToMap[K comparable, V any](s1 []K, m2 map[K]V) (added []K, remo
 	return
 }
 
+// finds what keys were removed and added from m1 compared to s2
 func CompareMapToSlice[K comparable, V any](m1 map[K]V, s2 []K) (added []K, removed []K) {
 	for k := range m1 {
 		if !slices.Contains(s2, k) {
