@@ -13,14 +13,15 @@ func TestConcurrency(t *testing.T) {
 	ranTaskIdxes := []int{}
 	for i := 0; i < 100; i++ {
 		go func(i int) {
-			cancel := connHandler.Enqueue(func() {
+			task := connHandler.Enqueue(func() {
 				ranTaskIdxes = append(ranTaskIdxes, i)
 				time.Sleep(time.Millisecond * 100)
 			})
 			if i%2 == 0 {
-				cancel()
+				task.Cancel()
 			}
 		}(i)
 	}
-	<-make(chan struct{})
+	connHandler.Done()
+	connHandler.Wait()
 }
