@@ -109,7 +109,15 @@ func (b *Balancer[V]) Remove(vals ...V) {
 }
 
 func (b *Balancer[V]) Use() (resp BalancerResp[V], ok bool) {
-	// Event notification for when next value is ready
+	resp = BalancerResp[V]{
+		Use: func() {},
+		Data: func() V {
+			var v V
+			return v
+		},
+		Report: func() {},
+		Wait:   func() {},
+	}
 
 	// Grab the first value
 	var data V
